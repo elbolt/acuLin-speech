@@ -1,4 +1,4 @@
-# Acoustic and Linguistic Encoding Analysis Pipelines for mTRF Models of Natural, Continuous Speech
+# Acoustic and linguistic ecoding analysis pipelines for mTRF models based on natural, continuous speech
 
 ## Description
 
@@ -11,7 +11,7 @@ The code is shared for transparency purposes. The data—comprising EEG and audi
 
 ## Structure
 
-### Data Preprocessing
+### Data preprocessing
 The EEG and speech preprocessing pipelines are located under `preprocessing`, which contains two directories, `eeg` and `speech`:
 
 * `preprocessing/eeg`: Contains the pipelines used for preprocessing the EEG data for mTRF analysis.
