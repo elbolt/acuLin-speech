@@ -1,0 +1,6 @@
+{
+    "phones_dir": "aligner/timestamps/phones",
+    "words_dir": "aligner/timestamps/words",
+    "out_dir": "phonetic",
+    "dict_dir": "DeReKoGram/custom_dict.txt"
+}

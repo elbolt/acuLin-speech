@@ -1,0 +1,14 @@
+{
+    "wav_dir": "/Volumes/NeuroSSD/subCortex-speech/data/audiofiles/raw",
+    "words_dir": "/Users/elenauzh/Projects/neutralin-speech/neutralin-speech/preprocessing/speech/representations/word",
+    "phones_dir": "/Users/elenauzh/Projects/neutralin-speech/neutralin-speech/preprocessing/speech/representations/phonetic",
+    "out_dir": "features/",
+    "audio_snips": [
+        "snip01", "snip02", "snip03", "snip04", "snip05", "snip06", "snip07", "snip08", "snip09", "snip10",
+        "snip11", "snip12", "snip13", "snip14", "snip15", "snip16", "snip17", "snip18", "snip19", "snip20",
+        "snip21", "snip22", "snip23", "snip24", "snip25"
+    ],
+    "vector_duration": 45,
+    "sfreq_target": 128,
+    "elements": ["words", "phones"]
+}
