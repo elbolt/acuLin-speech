@@ -42,13 +42,12 @@ def create(words_dir: str, phones_dir: str, out_dir: str, config: dict) -> None:
     full_length = (vector_duration + puffer_length) * sfreq_target
     final_length = (vector_duration) * sfreq_target
 
-    segmentation = np.full((full_length, n_snips, n_features), np.nan)
     words = np.full((full_length, n_snips, n_features), np.nan)
     phones = np.full((full_length, n_snips, n_features), np.nan)
 
     silent_samples = np.zeros(n_snips)
 
-    for e_idx, element in enumerate(elemenets):
+    for element in elemenets:
         last_feature = 'frequency' if element == 'words' else 'entropy'
         dir_ = words_dir if element == 'words' else phones_dir
         snips = sorted(dir_.glob('*.txt'))
@@ -90,7 +89,11 @@ def create(words_dir: str, phones_dir: str, out_dir: str, config: dict) -> None:
         surprisal_array = np.nan_to_num(surprisal_array)
         third_array = np.nan_to_num(third_array)
 
-        segmentation[..., e_idx] = onset_array
+        if element == 'words':
+            # Onset array is of the shape (n_samples, n_snips). Add an empty dimension to match the other arrays.
+            word_segmentation = onset_array[:, :, np.newaxis]
+        elif element == 'phones':
+            phone_segmentation = onset_array[:, :, np.newaxis]
 
         if element == 'words':
             words[..., 0] = surprisal_array
@@ -100,20 +103,19 @@ def create(words_dir: str, phones_dir: str, out_dir: str, config: dict) -> None:
             phones[..., 1] = third_array
 
     # Reshape to match EEG-MNE shape (n_epochs, n_channels, n_times)
-    segmentation = segmentation.transpose(1, 2, 0)
+    word_segmentation = word_segmentation.transpose(1, 2, 0)
+    phone_segmentation = phone_segmentation.transpose(1, 2, 0)
     words = words.transpose(1, 2, 0)
     phones = phones.transpose(1, 2, 0)
 
     # Cut to final length
-    segmentation = segmentation[:, :, :final_length]
+    word_segmentation = word_segmentation[:, :, :final_length]
+    phone_segmentation = phone_segmentation[:, :, :final_length]
     words = words[:, :, :final_length]
     phones = phones[:, :, :final_length]
 
-    print(f'Segmentation shape: {segmentation.shape}')
-    print(f'Words shape: {words.shape}')
-    print(f'Phones shape: {phones.shape}')
-
     np.save(out_dir / 'silent_samples.npy', silent_samples)
-    np.save(out_dir / 'segmentation.npy', segmentation)
+    np.save(out_dir / 'word_segment.npy', word_segmentation)
+    np.save(out_dir / 'phone_segment.npy', phone_segmentation)
     np.save(out_dir / 'words.npy', words)
     np.save(out_dir / 'phones.npy', phones)

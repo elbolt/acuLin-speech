@@ -7,38 +7,39 @@ from sklearn.linear_model import LinearRegression
 class BoostingDataLoader():
     """ Class to load data for boosting analysis.
 
-    In `eeg_dir`, my eeg data are stored as numpy arrays, shape: (n_epochs, n_channels, n_samples).
-    Each eeg array is named after the subject ID.
-    In `feature_dir, my speech data are stored as numpy arrays, shape: (n_epochs, n_features, n_samples).
+    This class is used to load EEG and speech data for boosting analysis. The EEG data is stored as numpy arrays in the
+    `eeg_dir` directory, with each array named after the subject ID. The shape of the EEG arrays is (n_epochs,
+    n_channels, n_samples). The speech data is stored as numpy arrays in the `feature_dir` directory, with a shape of
+    (n_epochs, n_features, n_samples).
 
-    The main method of this class is `get_data`, which returns the features and the EEG residuals for the selected
-    model. In line with Kries et al. (2023), I prepare the speech and feature data as follows:
+    The main method of this class is `get_data`, which returns the features and EEG residuals for the selected model.
+    The features and EEG residuals are prepared according to the encoding model selected.
+    The table below shows the encoding models and the features to regress out and boost on for each model:
 
-    +-----------------+--------------------+--------------------+
-    | Encoding model  | Regress out        | Boost on           |
-    +-----------------+--------------------+--------------------+
-    | "acoustic"      | `segmentation.npy` | `acoustics.npy`    |
-    |                 | `words.npy`        |                    |
-    |                 | `phones.npy`       |                    |
-    +-----------------+--------------------+--------------------+
-    | "segmentation"  | `acoustics.npy`    | `segmentation.npy` |
-    |                 | `words.npy`        |                    |
-    |                 | `phones.npy`       |                    |
-    +-----------------+--------------------+--------------------+
-    | "word-based"    | `acoustics.npy`    | `words.npy`        |
-    |                 | `segmentation.npy` |                    |
-    +-----------------+--------------------+--------------------+
-    | "phoneme-based" | `acoustics.npy`    | `phones.npy`       |
-    |                 | `segmentation.npy` |                    |
-    +-----------------+--------------------+--------------------+
-
-    The features contain the following n_features:
-    - `acoustics.npy`: envelopes, envelope onsets
-    - `segmentation.npy`: word onsets, phone onsets
-    - `words.npy`: word surprisal, word frequency
-    - `phones.npy`: phoneme surprisal, phonem entropy
-
-    The EEG residuals are obtained by regressing out the features not of interest using a Linear Regression model.
+    +-------------------------+---------------------+-------------------+
+    | Encoding Model          | Regress Out         | Boost On          |
+    +-------------------------+---------------------+-------------------+
+    | "acoustic"              | word_segment.npy    | acoustic.npy     |
+    |                         | phone_segment.npy   |                   |
+    |                         | words.npy           |                   |
+    |                         | phones.npy          |                   |
+    +-------------------------+---------------------+-------------------+
+    | "word-level             | acoustic.npy       | word_segment.npy  |
+    | segmentation"           | words.npy           |                   |
+    | `word_segment`          | phones.npy          |                   |
+    +-------------------------+---------------------+-------------------+
+    | "phoneme-level          | acoustic.npy       | phone_segment.npy |
+    | segmentation"           | words.npy           |                   |
+    | `phone_segment`         | phones.npy          |                   |
+    +-------------------------+---------------------+-------------------+
+    | "word-level linguistic" | acoustic.npy       | words.npy         |
+    | `words`                 | word_segment.npy    |                   |
+    |                         | phone_segment.npy   |                   |
+    +-------------------------+---------------------+-------------------+
+    | "phoneme-level          | acoustic.npy       | phones.npy        |
+    | linguistic"             | word_segment.npy    |                   |
+    | `phones`                | phone_segment.npy   |                   |
+    +-------------------------+---------------------+-------------------+
 
     Methods
     -------
@@ -63,9 +64,10 @@ class BoostingDataLoader():
             subject_id: str,
             eeg_dir: str,
             feature_dir: str,
-            sfreq: int = 128
+            model_attributes: dict,
+            sfreq: int = 128,
     ) -> None:
-        """ Initialize the class.
+        """Initialize the class.
 
         Parameters
         ----------
@@ -75,53 +77,58 @@ class BoostingDataLoader():
             Path to the EEG data.
         feature_dir : str | Path
             Path to the feature data.
-        sfreq : int | 128
+        model_attributes : dict
+            Dictionary of model attributes.
+        sfreq : int, default=128
             Sampling frequency of the EEG data.
 
         """
         self.subject_id = subject_id
-        self.eeg_dir = eeg_dir if eeg_dir.is_dir() else Path(eeg_dir)
-        self.feature_dir = feature_dir if feature_dir.is_dir() else Path(feature_dir)
+        self.eeg_dir = Path(eeg_dir)
+        self.feature_dir = Path(feature_dir)
         self.sfreq = sfreq
+        self.valid_models = list(model_attributes.keys())
 
-        self.load_data()
+        self.load_data(model_attributes)
 
-    def load_data(self) -> None:
+    def load_data(self, model_attributes: dict) -> None:
         """ Load data from files. """
-        file_attributes = {
-            'acoustics': 'acoustics.npy',
-            'segmentation': 'segmentation.npy',
-            'words': 'words.npy',
-            'phones': 'phones.npy'
-        }
-
-        for attr, filename in file_attributes.items():
-            setattr(self, attr, np.load(self.feature_dir / filename))
-
-        self.eeg = np.load(self.eeg_dir / f'{self.subject_id}.npy')
+        try:
+            for attr, filename in model_attributes.items():
+                setattr(self, attr, np.load(self.feature_dir / filename))
+            self.eeg = np.load(self.eeg_dir / f'{self.subject_id}.npy')
+        except FileNotFoundError as e:
+            raise FileNotFoundError(f"Error loading file: {e.filename}")
+        except Exception as e:
+            raise RuntimeError(f"An error occurred while loading data: {e}")
 
         # In participant 45, the first epoch is missing because we forgot to start the recording.
+        # if self.subject_id == 'p45':
+        #     self.acoustic = self.acoustic[1:, ...]
+        #     self.word_segment = self.word_segment[1:, ...]
+        #     self.phone_segment = self.phone_segment[1:, ...]
+        #     self.words = self.words[1:, ...]
+        #     self.phones = self.phones[1:, ...]
+
         if self.subject_id == 'p45':
-            self.acoustics = self.acoustics[1:, ...]
-            self.segmentation = self.segmentation[1:, ...]
-            self.words = self.words[1:, ...]
-            self.phones = self.phones[1:, ...]
+            for attr in model_attributes:
+                setattr(self, attr, getattr(self, attr)[1:, ...])
 
-        self.check_data()
+        self.check_data(model_attributes)
 
-    def check_data(self) -> None:
+    def check_data(self, model_attributes: dict) -> None:
         """ Check if all arrays have the same number of epochs and samples. """
-        file_list = ['acoustics', 'segmentation', 'words', 'phones', 'eeg']
-        shape_0 = getattr(self, file_list[0]).shape[0]
-        shape_2 = getattr(self, file_list[0]).shape[2]
+        data_shapes = {attr: getattr(self, attr).shape for attr in model_attributes.keys()}
 
-        for attr in file_list:
-            if getattr(self, attr).ndim != 3:
+        shapes_0 = {shape[0] for shape in data_shapes.values()}
+        shapes_2 = {shape[2] for shape in data_shapes.values()}
+
+        if len(shapes_0) > 1 or len(shapes_2) > 1:
+            raise ValueError('All arrays must have the same number of epochs and samples.')
+
+        for attr, shape in data_shapes.items():
+            if len(shape) != 3:
                 raise ValueError(f'Array {attr} does not have a 3D shape.')
-            if getattr(self, attr).shape[0] != shape_0:
-                raise ValueError('Not all arrays have the same number of epochs.')
-            if getattr(self, attr).shape[2] != shape_2:
-                raise ValueError('Not all arrays have the same number of samples.')
 
     def get_features(self, model: str) -> tuple[np.ndarray, np.ndarray]:
         """ Get features and the features to regress out for the selected model.
@@ -129,7 +136,7 @@ class BoostingDataLoader():
         Parameters
         ----------
         model : str
-            Encoding model to use. Must be one of 'acoustic', 'segmentation', 'word level', 'phoneme level'.
+            Encoding model to use. Must be one of the model attributes defined in `model_attributes`.
 
         Returns
         -------
@@ -140,17 +147,19 @@ class BoostingDataLoader():
 
         """
 
-        if model == 'acoustic':
-            feature = self.acoustics
-            features_out = np.concatenate((self.segmentation, self.words, self.phones), axis=1)
-        elif model == 'segmentation':
-            feature = self.segmentation
-            features_out = np.concatenate((self.acoustics, self.words, self.phones), axis=1)
-        elif model in ['word level', 'phoneme level']:
-            feature = self.words if model == 'word level' else self.phones
-            features_out = np.concatenate((self.acoustics, self.segmentation), axis=1)
-        else:
+        model_features = {
+            'acoustic': (self.acoustic, [self.word_segment, self.phone_segment, self.words, self.phones]),
+            'word_segment': (self.word_segment, [self.acoustic, self.words, self.phones]),
+            'phone_segment': (self.phone_segment, [self.acoustic, self.words, self.phones]),
+            'words': (self.words, [self.acoustic, self.word_segment, self.phone_segment]),
+            'phones': (self.phones, [self.acoustic, self.word_segment, self.phone_segment])
+        }
+
+        if model not in model_features:
             raise ValueError(f'Invalid model: {model}')
+
+        feature, features_out_list = model_features[model]
+        features_out = np.concatenate(features_out_list, axis=1)
 
         return feature, features_out
 
@@ -159,6 +168,17 @@ class BoostingDataLoader():
 
         In order to regress out the features not of interest, this method uses a Linear Regression model. The EEG
         residuals are obtained by subtracting the values predicted by the OLS model from the original EEG data.
+
+        Parameters
+        ----------
+        features_out : ndarray (n_epochs, n_features, n_samples)
+            feature data to regress out for the selected model.
+
+        Returns
+        -------
+        eeg_residuals_array : ndarray (n_epochs, n_channels, n_samples)
+            EEG residuals with respect to the features not of interest.
+
 
         """
         eeg_residuals_list = []
@@ -180,9 +200,18 @@ class BoostingDataLoader():
         return eeg_residuals_array
 
     def check_model(self, model: str) -> None:
-        model_list = ['acoustic', 'segmentation', 'word level', 'phoneme level']
-        if model not in model_list:
-            raise ValueError(f'Invalid model: {model}. Model must be in {model_list}.')
+        """ Check if the selected model is valid.
+
+        Parameters
+        ----------
+        model : str
+            Encoding model to use.
+        model_list : list
+            List of valid encoding models.
+
+        """
+        if model not in self.valid_models:
+            raise ValueError(f'Invalid model: {model}. Valid models are: {", ".join(self.valid_models)}.')
 
     def get_data(self, model: str, trim_beginnings: bool = False) -> tuple[np.ndarray, np.ndarray]:
         """ Get the data for the selected model.
@@ -190,7 +219,8 @@ class BoostingDataLoader():
         Parameters
         ----------
         model : str
-            Encoding model to use. Must be one of 'acoustic', 'segmentation', 'word level', 'phoneme level'.
+            Encoding model to use. Must be one of 'acoustic', 'word-level segmentation',
+            'phoneme-level segmentation', 'word-level linguistic', 'phoneme-level linguistic'
 
         Returns
         -------
@@ -237,36 +267,36 @@ class Booster():
         feature: np.ndarray,
         eeg: np.ndarray,
         sfreq: int = 128,
-        tmin: float = -100e-3,
-        tmax: float = 600e-3,
+        tmin: int = -200e-3,
+        tmax: int = 600e-3,
         partition: int = 6
     ) -> None:
-        """ Initialize the class.
+        """Initialize the class.
 
         Parameters
         ----------
-        feature : ndarray (n_epochs, n_features, n_samples)
-            feature data of interest.
-        eeg : ndarray (n_epochs, n_channels, n_samples)
-            EEG data.
-        sfreq : int | 128
+        feature : np.ndarray
+            Feature data of interest. Shape: (n_epochs, n_features, n_samples).
+        eeg : np.ndarray
+            EEG data. Shape: (n_epochs, n_channels, n_samples).
+        sfreq : int, default=128
             Sampling frequency of the EEG data.
-        tmin : float | -100e-3
-            Start time of the analysis window.
-        tmax : float | 600e-3
-            End time of the analysis window.
-        partition : int | 6
+        tmin : float, default=-200e-3
+            Start time of the analysis window in seconds.
+        tmax : float, default=600e-3
+            End time of the analysis window in seconds.
+        partition : int, default=6
             Number of partitions for the boosting analysis.
 
         """
-        self.boosting(
-            eeg=eeg,
-            feature=feature,
-            sfreq=sfreq,
-            tmin=tmin,
-            tmax=tmax,
-            partition=partition
-        )
+        self.eeg = eeg
+        self.feature = feature
+        self.sfreq = sfreq
+        self.tmin = tmin
+        self.tmax = tmax
+        self.partition = partition
+
+        pass
 
     def get_NDVar_from_array(self, eeg: np.ndarray, feature: np.ndarray, sfreq: int) -> tuple[eelbrain.NDVar]:
         """ Take feature and EEG data and create Eelbrain NDVar objects.
@@ -278,11 +308,17 @@ class Booster():
         timing = eelbrain.UTS(0, (1 / sfreq), eeg.shape[2])
         sensor = eelbrain.Sensor.from_montage('biosemi32')[:32]
 
-        eel_eeg = eelbrain.NDVar(eeg, (eelbrain.Case, sensor, timing), name='EEG')
-        first_feature = eelbrain.NDVar(feature[:, 0, :], (eelbrain.Case, timing), name='1st feature')
-        second_feature = eelbrain.NDVar(feature[:, 1, :], (eelbrain.Case, timing), name='2nd feature')
+        n_features = feature.shape[1]
 
-        return eel_eeg, first_feature, second_feature
+        eel_eeg = eelbrain.NDVar(eeg, (eelbrain.Case, sensor, timing), name='EEG')
+        features = []
+        for i in range(n_features):
+            feature_data = feature[:, i, :]
+            feature_name = f'{i+1}st feature' if i == 0 else f'{i+1}nd feature'
+            feature_var = eelbrain.NDVar(feature_data, (eelbrain.Case, timing), name=feature_name)
+            features.append(feature_var)
+
+        return (eel_eeg, [*features])
 
     def boosting(
         self,
@@ -300,15 +336,52 @@ class Booster():
         eeg : ndarray (n_epochs, n_channels, n_samples)
             EEG data.
         feature : ndarray (n_epochs, n_features, n_samples)
-            feature data of interest.
+            Feature data.
         sfreq : int
-            Sampling frequency of the EEG and feature data.
+            Sampling frequency of the EEG data.
         tmin : float
-            Start time of the kernel estimation window.
+            Start time of the analysis window.
         tmax : float
-            End time of the kernel estimation window.
+            End time of the analysis window.
         partition : int
             Number of partitions for the boosting analysis.
+
+        """
+        try:
+            eel_eeg, features = self.get_NDVar_from_array(
+                eeg=eeg,
+                feature=feature,
+                sfreq=sfreq
+            )
+
+            boosting_result = eelbrain.boosting(
+                y=eel_eeg,
+                x=features,
+                tstart=tmin,
+                tstop=tmax,
+                scale_data=True,
+                basis=100e-3,
+                partitions=partition,
+                partition_results=False,
+                test=True,
+            )
+
+            time_vector = boosting_result.h_time.times
+            n_features = feature.shape[1]
+            kernels = np.full((n_features, eeg.shape[1], time_vector.shape[0]), np.nan)
+
+            for i in range(n_features):
+                kernels[i, ...] = boosting_result.h[i]
+
+            scores = boosting_result.r.get_data()
+
+            return kernels, scores, time_vector
+
+        except Exception as e:
+            raise RuntimeError(f"An error occurred while running boosting analysis: {e}")
+
+    def get_results(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """ Get the boosting results.
 
         Returns
         -------
@@ -321,38 +394,13 @@ class Booster():
 
         """
 
-        eel_eeg, first_feature, second_feature = self.get_NDVar_from_array(
-            eeg=eeg,
-            feature=feature,
-            sfreq=sfreq
+        kernels, scores, time_vector = self.boosting(
+            eeg=self.eeg,
+            feature=self.feature,
+            sfreq=self.sfreq,
+            tmin=self.tmin,
+            tmax=self.tmax,
+            partition=self.partition
         )
 
-        boosting_result = eelbrain.boosting(
-            y=eel_eeg,
-            x=[first_feature, second_feature],
-            tstart=tmin,
-            tstop=tmax,
-            scale_data=True,
-            basis=100e-3,
-            partitions=partition,
-            partition_results=False,
-            test=True,
-        )
-
-        time_vector = boosting_result.h_time.times
-        first_kernel, second_kernel = boosting_result.h
-
-        kernels = np.full((feature.shape[1], eeg.shape[1], time_vector.shape[0]), np.nan)
-        kernels[0, ...] = first_kernel
-        kernels[1, ...] = second_kernel
-
-        scores = boosting_result.r.get_data()
-
-        self.kernels = kernels
-        self.scores = scores
-        self.time_vector = time_vector
-
-    def get_results(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """ Get the boosting results. """
-
-        return self.kernels, self.scores, self.time_vector
+        return kernels, scores, time_vector

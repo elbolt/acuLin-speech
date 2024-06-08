@@ -1,6 +1,6 @@
 {
     "eeg_dir": "/Volumes/NeuroSSD/neutralin-speech/EEG",
-    "feature_dir": "/Users/elenauzh/Projects/neutralin-speech/neutralin-speech/preprocessing/speech/features/features",
+    "feature_dir": "/Users/elenauzh/Projects/neutralin-speech/acuLin-speech/preprocessing/speech/features/features",
     "out_dir": "/Volumes/NeuroSSD/neutralin-speech/boosting",
     "default_subjects": [
         "p01", "p02", "p03", "p04", "p05", "p06", "p07", "p08",
@@ -14,5 +14,12 @@
     "tmin": -200e-3,
     "tmax": 600e-3,
     "partition": 6,
-    "model_list": ["acoustic", "segmentation", "word level", "phoneme level"]
+    "model_attributes": {
+        "acoustic": "acoustics.npy",
+        "word_segment": "word_segment.npy",
+        "phone_segment": "phone_segment.npy",
+        "words": "words.npy",
+        "phones": "phones.npy"
+    },
+    "n_responses": 8
 }

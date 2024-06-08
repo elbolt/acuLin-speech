@@ -26,7 +26,7 @@ def run_eeg_preprocessing(
         - Interpolate bad channels
         - Anti-alias filter and downsample to 128 Hz
         - 1-25 Hz band-pass filter
-        - Crop to 50 seconds
+        - Crop to 45 seconds
         - Global z-scoring
         - Save preprocessed data
 

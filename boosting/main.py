@@ -12,102 +12,118 @@ def run_boosting_pipeline(
     feature_dir: Path,
     trf_params: dict,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """ Run boosting pipeline for a single participant.
+    """
+    Run the boosting pipeline for a given subject and models.
 
     Parameters
     ----------
     subject_id : str
-        Subject ID.
-    eeg_dir : pathlib.Path
-        Path to EEG data.
-    feature_dir : pathlib.Path
-        Path to features.
+        The ID of the subject.
+    eeg_dir : Path
+        Path to the directory containing EEG data.
+    feature_dir : Path
+        Path to the directory containing feature data.
     trf_params : dict
-        dictionary containing the following parameters:
-            model_list : list
-                List of models to fit.
-            sfreq : float
-                Sampling frequency.
-            tmin : float
-                Start time of the epoch.
-            tmax : float
-                End time of the epoch.
-            partition : int
-                Number of partitions for cross-validation.
+        Dictionary containing the parameters for the TRF model:
+        - model_attributes : dict
+        - sfreq : int
+        - tmin : float
+        - tmax : float
+        - partition : int
 
     Returns
     -------
-    all_kernels : np.ndarray
-        4D array of kernels (n_model, n_features, n_channels, n_times)
-    all_scores : np.ndarray
-        2D array of scores (n_model, n_times)
-    times : np.ndarray
-        1D array of time points (n_times)
-
+    stacked_scores : np.ndarray
+        Stacked boosting scores for all models.
+    stacked_kernels : np.ndarray
+        Stacked boosting kernels for all models.
+    time_vector : np.ndarray
+        Time vector of the estimated kernels.
     """
-
-    model_list = trf_params['model_list']
+    # Extract TRF parameters
+    model_attributes = trf_params['model_attributes']
+    model_list = model_attributes.keys()
     sfreq = trf_params['sfreq']
     tmin = trf_params['tmin']
     tmax = trf_params['tmax']
     partition = trf_params['partition']
 
-    all_kernels = []
     all_scores = []
+    all_kernels = []
 
     for model in tqdm(model_list, desc=f'Fit {subject_id} models'):
-        loader = BoostingDataLoader(subject_id, eeg_dir, feature_dir)
+        loader = BoostingDataLoader(
+            subject_id=subject_id,
+            eeg_dir=eeg_dir,
+            feature_dir=feature_dir,
+            model_attributes=model_attributes,
+            sfreq=sfreq
+        )
         feature, eeg_residuals = loader.get_data(model=model, trim_beginnings=True)
 
         booster = Booster(
-            feature,
-            eeg_residuals,
+            feature=feature,
+            eeg=eeg_residuals,
             sfreq=sfreq,
             tmin=tmin,
             tmax=tmax,
-            partition=partition,
+            partition=partition
         )
 
-        kernels, scores, times = booster.get_results()
+        kernels, scores, time_vector = booster.get_results()
 
-        all_kernels.append(np.stack(kernels, axis=0))
         all_scores.append(scores)
+        all_kernels.append(kernels)
 
-    all_kernels = np.array(all_kernels)
-    all_scores = np.array(all_scores)
+    stacked_scores = np.array(all_scores)
+    stacked_kernels = np.vstack(all_kernels)
 
-    return all_kernels, all_scores, times
+    return stacked_scores, stacked_kernels, time_vector
 
 
-if __name__ == '__main__':
-    print(f'Running {__file__} ...')
-
+def main():
+    """
+    Main function to run the boosting pipeline for multiple subjects.
+    """
     with open('config.json', 'r') as file:
         config = json.load(file)
 
-    eeg_dir = Path(config['eeg_dir'])
-    feature_dir = Path(config['feature_dir'])
-    out_dir = Path(config['out_dir'])
-    default_subjects = config['default_subjects']
-
-    trf_dict = {
-        "model_list": config['model_list'],
+    # Create TRF parameters dictionary
+    trf_params = {
+        "model_attributes": config['model_attributes'],
         "sfreq": config['sfreq'],
         "tmin": config['tmin'],
         "tmax": config['tmax'],
-        "partition": config['partition']
+        "partition": config['partition'],
+        "n_responses": config['n_responses']
     }
 
-    out_dir.mkdir(exist_ok=True)
+    # Path configuration
+    eeg_dir = Path(config['eeg_dir'])
+    feature_dir = Path(config['feature_dir'])
+    out_dir = Path(config['out_dir'])
+    out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / 'kernels').mkdir(exist_ok=True)
     (out_dir / 'scores').mkdir(exist_ok=True)
 
+    # Participant parsing
+    default_subjects = config['default_subjects']
     subjects = parse_arguments(default_subjects)
 
     for subject_id in subjects:
-        all_kernels, all_scores, times = run_boosting_pipeline(subject_id, eeg_dir, feature_dir, trf_dict)
+        scores, kernels, times = run_boosting_pipeline(
+            subject_id=subject_id,
+            eeg_dir=eeg_dir,
+            feature_dir=feature_dir,
+            trf_params=trf_params,
+        )
+        # Save results
+        np.save(out_dir / 'scores' / f'{subject_id}.npy', scores)
+        np.save(out_dir / 'kernels' / f'{subject_id}.npy', kernels)
 
-        np.save(out_dir / 'kernels' / f'{subject_id}.npy', all_kernels)
-        np.save(out_dir / 'scores' / f'{subject_id}.npy', all_scores)
+    # Save time vector only once
+    np.save(out_dir / 'time_vector.npy', times)
 
-    np.save(out_dir / 'times.npy', times)
+
+if __name__ == '__main__':
+    main()
