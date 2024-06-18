@@ -1,0 +1,38 @@
+{
+    "kernels_dir": "/Volumes/NeuroSSD/neutralin-speech/boosting/kernels/",
+    "scores_dir": "/Volumes/NeuroSSD/neutralin-speech/boosting/scores/",
+    "figures_dir": "figures/",
+    "dataframes_dir": "dataframes/",
+    "subject_data_filename": "subject_data.csv",
+    "scores_filename": "scores_data.csv",
+    "rms_filename": "rms_data.csv",
+    "peak_filename": "peak_data.csv",
+    "peak_window_filename": "peak__data_window.csv",
+    "time_vector": "/Volumes/NeuroSSD/neutralin-speech/boosting/time_vector.npy",
+    "tmin": -0.050,
+    "tmax": 0.500,
+    "peak_prominence": 0.5,
+    "relevant_channels": ["F3", "Fz", "F4", "C3", "Cz", "C4", "P3", "Pz", "P4"],
+    "models_dict": {
+        "acoustic": 0,
+        "segmentation word": 1,
+        "segmentation phone": 2,
+        "linguistic word": 3,
+        "linguistic phone": 4
+    },
+    "responses_dict": {
+        "envelope": 0,
+        "envelope onsets": 1,
+        "word onset": 2,
+        "phoneme onset": 3,
+        "word surprisal": 4,
+        "word frequency": 5,
+        "phoneme surprisal": 6,
+        "phoneme entropy": 7
+    },
+    "colors": {
+        "speech": "#009988",
+        "word": "#000000",
+        "phone": "#767676"
+    }
+}

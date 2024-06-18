@@ -77,9 +77,7 @@ def run_eeg_preprocessing(
         del epochs_ica_copy
 
         epochs.interpolate_bads(reset_bads=True)
-
-        epochs.set_eeg_reference(ref_channels='average')
-
+    
         epochs.filter(
             l_freq=None,
             h_freq=sfreq_goal / 3.0,

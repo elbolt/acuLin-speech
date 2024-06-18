@@ -169,3 +169,7 @@ preprocessing/speech/representations/DeReKoGram
 preprocessing/speech/representations/phonetic
 preprocessing/speech/representations/word
 preprocessing/speech/features/features
+figures/
+statistics/dataframes/
+statistics/figures/
+statistics/test.ipynb

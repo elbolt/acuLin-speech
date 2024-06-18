@@ -19,24 +19,24 @@ class BoostingDataLoader():
     +-------------------------+---------------------+-------------------+
     | Encoding Model          | Regress Out         | Boost On          |
     +-------------------------+---------------------+-------------------+
-    | "acoustic"              | word_segment.npy    | acoustic.npy     |
+    | "acoustic"              | word_segment.npy    | acoustic.npy      |
     |                         | phone_segment.npy   |                   |
     |                         | words.npy           |                   |
     |                         | phones.npy          |                   |
     +-------------------------+---------------------+-------------------+
-    | "word-level             | acoustic.npy       | word_segment.npy  |
+    | "word-level             | acoustic.npy        | word_segment.npy  |
     | segmentation"           | words.npy           |                   |
     | `word_segment`          | phones.npy          |                   |
     +-------------------------+---------------------+-------------------+
-    | "phoneme-level          | acoustic.npy       | phone_segment.npy |
+    | "phoneme-level          | acoustic.npy        | phone_segment.npy |
     | segmentation"           | words.npy           |                   |
     | `phone_segment`         | phones.npy          |                   |
     +-------------------------+---------------------+-------------------+
-    | "word-level linguistic" | acoustic.npy       | words.npy         |
+    | "word-level linguistic" | acoustic.npy        | words.npy         |
     | `words`                 | word_segment.npy    |                   |
     |                         | phone_segment.npy   |                   |
     +-------------------------+---------------------+-------------------+
-    | "phoneme-level          | acoustic.npy       | phones.npy        |
+    | "phoneme-level          | acoustic.npy        | phones.npy        |
     | linguistic"             | word_segment.npy    |                   |
     | `phones`                | phone_segment.npy   |                   |
     +-------------------------+---------------------+-------------------+
