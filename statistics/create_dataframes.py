@@ -41,7 +41,7 @@ def create_scores_data(
     df = pd.DataFrame({
         'subject_id': all_subjects,
         'model': all_models,
-        'score': all_scores
+        'score_r': all_scores
     })
 
     return df

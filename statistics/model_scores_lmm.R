@@ -1,0 +1,223 @@
+# Load required libraries
+library(jsonlite)
+library(lme4)
+library(lattice)
+library(lmerTest)
+library(MuMIn)
+library(performance)
+library(rstudioapi)
+library(sjPlot)
+library(xtable)
+library(emmeans)
+library(car)
+library(tibble)
+library(dplyr)
+library(ggplot2)
+
+# Set working directory and load configurations
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+config <- fromJSON("config.json")
+source("helpers.R")
+dataframes_dir <- config$dataframes_dir
+scores_filename <- paste(dataframes_dir, config$scores_filename, sep = "/")
+data <- read.csv(scores_filename)
+
+tables_dir <- config$tables_dir
+scores_table_file <- config$scores_table_file
+
+# ----------------------------------------------------------------------
+# Data preparation
+
+# Preparation 1: Model to factor then sum coding
+n_models <- length(unique(data$model))
+model_order <- names(config$models_dict)
+data$model <- factor(data$model, levels = model_order)
+contrasts(data$model) <- contr.sum(n_models)
+
+# Preparation 2: MoCA_group
+n_groups <- length(unique(data$MoCA_group))
+data$MoCA_group <- factor(data$MoCA_group, levels = c("normal", "low"))
+contrasts(data$MoCA_group) <- contr.sum(n_groups)
+
+# Preparation 3: Subject ID
+data$subject_id <- factor(data$subject_id)
+
+# Preparation 4: z-score continuous variables
+data$PTA_z <- scale(data$PTA_dB)
+
+# Check what contrasts look like
+data$model
+data$MoCA_group
+
+# Check factor variable
+data$subject_id
+
+# Check z-scored continuous variables
+data$PTA_z
+
+# ----------------------------------------------------------------------
+# Define fixed effects structure
+# (I only include random intercepts in random effects structure)
+
+# Model: Three-way interaction between MoCA_group, PTA_z, and model
+max_model <- lmer(
+  score_r ~ 1 + MoCA_group * PTA_z * model +
+    (1 | subject_id),
+  data = data,
+  control = lmerControl(optimizer = "bobyqa")
+)
+
+red1_model <- lmer(
+  score_r ~ 1 + MoCA_group * PTA_z + model +
+    (1 | subject_id),
+  data = data,
+  control = lmerControl(optimizer = "bobyqa")
+)
+
+red2_model <- lmer(
+  score_r ~ 1 + MoCA_group * model +
+    (1 | subject_id),
+  data = data,
+  control = lmerControl(optimizer = "bobyqa")
+)
+
+anova(max_model, red1_model, red2_model)
+
+final_model <- max_model
+
+summary(final_model)
+
+# ----------------------------------------------------------------------
+# Model diagnostics
+
+# Residuals vs Fitted
+plot(fitted(final_model), residuals(final_model), main = "Residuals vs Fitted")
+abline(h = 0, col = "red")
+
+# QQ Plot of residuals
+qqnorm(residuals(final_model))
+qqline(residuals(final_model), col = "red")
+
+# Histogram of residuals
+hist(residuals(final_model), breaks = 30, main = "Histogram of Residuals")
+
+# Extract random effects
+ranef(final_model)
+
+# Cook's Distance
+cooksd <- cooks.distance(final_model)
+plot(cooksd, main = "Cook's Distance", type = "h")
+abline(h = 4 / (nrow(data) - length(fixef(final_model))), col = "red")
+
+# Goodness-of-Fit
+r.squaredGLMM(final_model)
+AIC(final_model)
+BIC(final_model)
+
+# Multicollinearity
+vif(lm(score_r ~ MoCA_group * PTA_z * model, data = data))
+
+
+# ----------------------------------------------------------------------
+# Post-hoc analysis
+
+emm_interaction <- emmeans(final_model, ~ PTA_z * model)
+pairs(emm_interaction)
+
+# Plot interaction
+emm_data <- as.data.frame(emm_interaction)
+ggplot(emm_data, aes(x = model, y = emmean, color = as.factor(PTA_z))) +
+  geom_point(position = position_dodge(width = 0.5)) +
+  geom_errorbar(
+    aes(ymin = emmean - SE, ymax = emmean + SE),
+    width = 0.2,
+    position = position_dodge(width = 0.5)
+  ) +
+  labs(title = "Interaction between PTA_z and Model on Scores",
+       x = "Model",
+       y = "Estimated Marginal Means",
+       color = "PTA_z") +
+  theme_minimal()
+
+
+# ----------------------------------------------------------------------
+# Draw inferences and create nice LaTeX tables
+
+p_values <- summary(final_model)$coefficients[, "Pr(>|t|)"]
+conf_intervals <- confint(
+  final_model,
+  parm = "beta_",
+  method = "Wald",
+  nsim = 5000,
+  seed = 2025
+)
+
+ci_tab <- as.data.frame(cbind(
+  estimate = fixef(final_model),
+  conf_intervals,
+  p_values
+))
+
+new_coeff_names <- c(
+  "Intercept",
+  "MoCA group (low)",
+  "PTA ($z$)",
+  "Model (Segment. word-level)",
+  "Model (Segment. phoneme-level)",
+  "Model (Linguistic word-level)",
+  "Model (Linguistic phoneme-level)",
+  "MoCA group (low) x PTA ($z$)",
+  "MoCA group (low) x Model (Segment. word-level)",
+  "MoCA group (low) x Model (Segment. phoneme-level)",
+  "MoCA group (low) x Model (Linguistic word-level)",
+  "MoCA group (low) x Model (Linguistic phoneme-level)",
+  "PTA ($z$) x Model (Segment. word-level)",
+  "PTA ($z$) x Model (Segmentation phoneme-level)",
+  "PTA ($z$) x Model (Linguistic word-level)",
+  "PTA ($z$) x Model (Linguistic phoneme-level)",
+  "MoCA group (low) x PTA ($z$) x Model (Segment. word-level)",
+  "MoCA group (low) x PTA ($z$) x Model (Segment. phoneme-level)",
+  "MoCA group (low) x PTA ($z$) x Model (Linguistic word-level)",
+  "MoCA group (low) x PTA ($z$) x Model (Linguistic phoneme-level)"
+)
+rownames(ci_tab) <- new_coeff_names
+
+# Add significance stars
+ci_tab$significance <- ifelse(
+  ci_tab$p_values < 0.001, "***",
+  ifelse(
+    ci_tab$p_values < 0.01, "**",
+    ifelse(
+      ci_tab$p_values < 0.05, "*",
+      ""
+    )
+  )
+)
+
+# Apply formatting
+ci_tab$estimate <- sapply(ci_tab$estimate, format_and_wrap)
+ci_tab$`2.5 %` <- sapply(ci_tab$`2.5 %`, format_and_wrap)
+ci_tab$`97.5 %` <- sapply(ci_tab$`97.5 %`, format_and_wrap)
+ci_tab$p_values <- sapply(ci_tab$p_values, format_and_wrap)
+ci_tab <- rownames_to_column(ci_tab, var = "Coefficient")
+
+# Rename columns for confidence intervals
+colnames(ci_tab) <- c("Coefficient", "Estimate", "$LL$", "$UL$", "$p$", "")
+
+# Create xtable object
+xtable_ci <- xtable(ci_tab)
+
+# Define alignment for columns
+align(xtable_ci) <- c("l", "l", "r", "r", "r", "r", "l")
+
+# Save to .tex file
+writeLines(
+  print(
+    xtable_ci,
+    add.to.row = list(pos = list(-1),
+    command = c("\\hline & & \\multicolumn{2}{c}{95\\% CI} & & \\\\ \\cmidrule(r){3-4}\n")),
+    include.rownames = FALSE,
+    hline.after = c(0, nrow(ci_tab)),
+    sanitize.text.function = sanitize
+  ), paste(tables_dir, scores_table_file, sep = "/")
+)
