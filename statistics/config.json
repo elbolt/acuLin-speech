@@ -32,9 +32,14 @@
         "phoneme surprisal": 6,
         "phoneme entropy": 7
     },
-    "colors": {
-        "speech": "#009988",
-        "word": "#000000",
-        "phone": "#767676"
+    "channel_cluster_dict": {
+        "F": ["F3", "Fz", "F4"],
+        "C": ["C3", "Cz", "C4"],
+        "P": ["P3", "Pz", "P4"]
+    },
+    "channel_cluster_dummy_dict": {
+        "F": [3, 30, 26],
+        "C": [7, 31, 22],
+        "P": [11, 12, 18]
     }
 }

@@ -53,6 +53,7 @@ def create_RMS_data(
         time_vector: np.ndarray,
         tmin: float,
         tmax: float,
+        relevant_channels: list[str],
         channel_indices: list[int]
 ) -> pd.DataFrame:
     """ Create a DataFrame with RMS data from the kernel files.
@@ -71,6 +72,8 @@ def create_RMS_data(
         Minimum time.
     tmax : float
         Maximum time.
+    relevant_channels : list[str]
+        List of relevant channels.
     channel_indices : list[int]
         List of channel indices.
 
@@ -89,6 +92,8 @@ def create_RMS_data(
 
         relevant_kernel_data, _ = get_relevant_data(kernel_data, time_vector, tmin, tmax, channel_indices)
         RMS_data = np.sqrt(np.mean(relevant_kernel_data ** 2, axis=2))
+
+        # REINTRODUCE THE CHANNELS
 
         subject_df = pd.DataFrame(RMS_data, index=list(responses_dict.keys()), columns=channel_indices)
         subject_df = subject_df.reset_index().melt(id_vars='index', var_name='electrode_id', value_name='RMS')
@@ -222,6 +227,7 @@ if __name__ == "__main__":
         time_vector,
         tmin,
         tmax,
+        relevant_channels,
         channel_indices
     )
 

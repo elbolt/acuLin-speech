@@ -31,3 +31,18 @@ format_and_wrap <- function(x) {
 #' @examples
 #' sanitize("$example$")  # returns "$example$"
 sanitize <- function(x) x
+
+
+#' Finds the cluster to which an electrode belongs.
+#' 
+#' @param electrode_id Character string representing the electrode ID.
+#' @param cluster_dict A named list where each element is cluster of electrodes.
+#' @return Name of cluster to which the electrode belongs, or NA.
+find_cluster <- function(electrode_id, cluster_dict) {
+  for (cluster in names(cluster_dict)) {
+    if (electrode_id %in% cluster_dict[[cluster]]) {
+      return(cluster)
+    }
+  }
+  return(NA)
+}

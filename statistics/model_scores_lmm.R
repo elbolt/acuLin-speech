@@ -19,11 +19,11 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 config <- fromJSON("config.json")
 source("helpers.R")
 dataframes_dir <- config$dataframes_dir
-scores_filename <- paste(dataframes_dir, config$scores_filename, sep = "/")
-data <- read.csv(scores_filename)
-
 tables_dir <- config$tables_dir
+scores_filename <- paste(dataframes_dir, config$scores_filename, sep = "/")
 scores_table_file <- config$scores_table_file
+
+data <- read.csv(scores_filename)
 
 # ----------------------------------------------------------------------
 # Data preparation
@@ -59,7 +59,6 @@ data$PTA_z
 # Define fixed effects structure
 # (I only include random intercepts in random effects structure)
 
-# Model: Three-way interaction between MoCA_group, PTA_z, and model
 max_model <- lmer(
   score_r ~ 1 + MoCA_group * PTA_z * model +
     (1 | subject_id),
@@ -166,19 +165,19 @@ new_coeff_names <- c(
   "Model (Segment. phoneme-level)",
   "Model (Linguistic word-level)",
   "Model (Linguistic phoneme-level)",
-  "MoCA group (low) x PTA ($z$)",
-  "MoCA group (low) x Model (Segment. word-level)",
-  "MoCA group (low) x Model (Segment. phoneme-level)",
-  "MoCA group (low) x Model (Linguistic word-level)",
-  "MoCA group (low) x Model (Linguistic phoneme-level)",
-  "PTA ($z$) x Model (Segment. word-level)",
-  "PTA ($z$) x Model (Segmentation phoneme-level)",
-  "PTA ($z$) x Model (Linguistic word-level)",
-  "PTA ($z$) x Model (Linguistic phoneme-level)",
-  "MoCA group (low) x PTA ($z$) x Model (Segment. word-level)",
-  "MoCA group (low) x PTA ($z$) x Model (Segment. phoneme-level)",
-  "MoCA group (low) x PTA ($z$) x Model (Linguistic word-level)",
-  "MoCA group (low) x PTA ($z$) x Model (Linguistic phoneme-level)"
+  "MoCA group (low) * PTA ($z$)",
+  "MoCA group (low) * Model (Segment. word-level)",
+  "MoCA group (low) * Model (Segment. phoneme-level)",
+  "MoCA group (low) * Model (Linguistic word-level)",
+  "MoCA group (low) * Model (Linguistic phoneme-level)",
+  "PTA ($z$) * Model (Segment. word-level)",
+  "PTA ($z$) * Model (Segmentation phoneme-level)",
+  "PTA ($z$) * Model (Linguistic word-level)",
+  "PTA ($z$) * Model (Linguistic phoneme-level)",
+  "MoCA group (low) * PTA ($z$) * Model (Segment. word-level)",
+  "MoCA group (low) * PTA ($z$) * Model (Segment. phoneme-level)",
+  "MoCA group (low) * PTA ($z$) * Model (Linguistic word-level)",
+  "MoCA group (low) * PTA ($z$) * Model (Linguistic phoneme-level)"
 )
 rownames(ci_tab) <- new_coeff_names
 
