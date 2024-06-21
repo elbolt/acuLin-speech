@@ -1,4 +1,3 @@
-# Load required libraries
 library(jsonlite)
 library(lme4)
 library(lattice)
@@ -6,7 +5,6 @@ library(lmerTest)
 library(MuMIn)
 library(performance)
 library(rstudioapi)
-library(sjPlot)
 library(xtable)
 library(emmeans)
 library(car)
@@ -200,16 +198,12 @@ ci_tab$`97.5 %` <- sapply(ci_tab$`97.5 %`, format_and_wrap)
 ci_tab$p_values <- sapply(ci_tab$p_values, format_and_wrap)
 ci_tab <- rownames_to_column(ci_tab, var = "Coefficient")
 
-# Rename columns for confidence intervals
 colnames(ci_tab) <- c("Coefficient", "Estimate", "$LL$", "$UL$", "$p$", "")
 
 # Create xtable object
-xtable_ci <- xtable(ci_tab)
-
-# Define alignment for columns
+xtable_ci <- xtable(ci_tab, caption = "Caption")
 align(xtable_ci) <- c("l", "l", "r", "r", "r", "r", "l")
 
-# Save to .tex file
 writeLines(
   print(
     xtable_ci,
@@ -217,6 +211,6 @@ writeLines(
     command = c("\\hline & & \\multicolumn{2}{c}{95\\% CI} & & \\\\ \\cmidrule(r){3-4}\n")),
     include.rownames = FALSE,
     hline.after = c(0, nrow(ci_tab)),
-    sanitize.text.function = sanitize
+    sanitize.text.function = sanitize,
   ), paste(tables_dir, scores_table_file, sep = "/")
 )

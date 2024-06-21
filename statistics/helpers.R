@@ -46,3 +46,28 @@ find_cluster <- function(electrode_id, cluster_dict) {
   }
   return(NA)
 }
+
+
+#' Custom function to combine multiple tables into a single data frame.
+#' 
+#' @param table_list A list of data frames to be combined.
+#' @param model_names A character vector of model names to be added to the combined data frame.
+#' @return A single data frame with all tables combined.
+combine_tables <- function(table_list, model_names) {
+  combined <- data.frame()
+  for (i in seq(1, length(table_list), by = 6)) {
+    model_df <- data.frame(
+      Coefficient = table_list[[i]],
+      Estimate = table_list[[i + 1]],
+      LL = table_list[[i + 2]],
+      UL = table_list[[i + 3]],
+      p = table_list[[i + 4]],
+      Significance = table_list[[i + 5]]
+    )
+    model_df$Model <- ""  # Initialize Model column with empty strings
+    model_name_index <- ceiling(i / 6)
+    separator <- data.frame(Coefficient = NA, Estimate = NA, LL = NA, UL = NA, p = NA, Significance = NA, Model = model_names[model_name_index])
+    combined <- bind_rows(combined, separator, model_df)
+  }
+  return(combined)
+}

@@ -1,4 +1,3 @@
-# Load required libraries
 library(jsonlite)
 library(lme4)
 library(lattice)
@@ -6,13 +5,14 @@ library(lmerTest)
 library(MuMIn)
 library(performance)
 library(rstudioapi)
-library(sjPlot)
 library(xtable)
 library(emmeans)
 library(car)
 library(tibble)
 library(dplyr)
+library(tidyr)
 library(ggplot2)
+library(xtable)
 
 # Set working directory and load configurations
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
@@ -21,20 +21,12 @@ source("helpers.R")
 
 dataframes_dir <- config$dataframes_dir
 tables_dir <- config$tables_dir
-rms_table_file <- config$rms_table_file
 rms_filename <- paste(dataframes_dir, config$rms_filename, sep = "/")
+rms_table_file <- config$rms_table_file
 channel_cluster_dummy_dict <- config$channel_cluster_dummy_dict
 
 data <- read.csv(rms_filename)
-
-
-# + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + +
-# # IMPORTANT: Model!
-# model_no <- 4
 models <- unique(data$model)
-# current_model <- models[model_no]
-# + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + +
-
 
 # ----------------------------------------------------------------------
 # Data subset and preparation
@@ -51,12 +43,10 @@ final_models <- list()
 ci_tabs <- list()
 
 for (current_model in models) {
-  print(paste("========= Current model is:", current_model, "========="))
-  
+
   # Preparation 2: Subset data
   data_subset <- subset(data, model == current_model)
-  # rm(data)
-  
+
   # Preparation 3: Set response order for each model
   if (current_model == "acoustic") {
     response_order <- c("envelope", "envelope onsets")
@@ -69,13 +59,13 @@ for (current_model in models) {
   } else if (current_model == "linguistic phone") {
     response_order <- c("phoneme surprisal", "phoneme entropy")
   }
-  
+
   data_subset$response <- factor(data_subset$response, levels = response_order)
   if (current_model != "segmentation word" && current_model != "segmentation phone") {
     n_responses <- length(unique(data_subset$response))
     contrasts(data_subset$response) <- contr.treatment(n_responses)
   }
-  
+
   # Preparation 4: MoCA_group
   n_groups <- length(unique(data_subset$MoCA_group))
   data_subset$MoCA_group <- factor(data_subset$MoCA_group, levels = c("normal", "low"))
@@ -83,10 +73,10 @@ for (current_model in models) {
 
   # Preparation 5: Subject ID
   data_subset$subject_id <- factor(data_subset$subject_id)
-  
+
   # Preparation 5: z-score continuous variables
   data_subset$PTA_z <- scale(data_subset$PTA_dB)
-  
+
   # Preparation 6: Cluster
   data_subset$cluster <- factor(data_subset$cluster, levels = c("F", "C", "P"))
   contrasts(data_subset$cluster) <- contr.treatment(3)
@@ -94,18 +84,18 @@ for (current_model in models) {
   # Check what contrasts look like
   data_subset$response
   data_subset$MoCA_group
-  
+
   # Check factor variable
   data_subset$subject_id
-  
+
   # Check z-scored continuous variables
   data_subset$PTA_z
-  
-  
+
+
   # ----------------------------------------------------------------------
   # Define fixed effects structure
   # (I only include random intercepts in random effects structure)
-  
+
   # Segmentation models have one response variable only.
   if (current_model != "segmentation word" && current_model != "segmentation phone") {
     max_model <- lmer(
@@ -114,7 +104,7 @@ for (current_model in models) {
       data = data_subset,
       control = lmerControl(optimizer = "bobyqa")
     )
-    
+
     red1_model <- lmer(
       RMS ~ 1 + MoCA_group * PTA_z * response + cluster +
         (1 | subject_id),
@@ -139,7 +129,7 @@ for (current_model in models) {
       data = data_subset,
       control = lmerControl(optimizer = "bobyqa")
     )
-    
+
     red1_model <- lmer(
       RMS ~ 1 + MoCA_group * PTA_z + cluster +
         (1 | subject_id),
@@ -150,7 +140,7 @@ for (current_model in models) {
     final_model <- red1_model
     final_models <- c(final_models, final_model)
   }
-  
+
   if (current_model == "acoustic") {
     response_name <- "Speech feature (envelope onsets)"
   } else if (current_model == "linguistic word") {
@@ -158,10 +148,10 @@ for (current_model in models) {
   } else if (current_model == "linguistic phone") {
     response_name <- "Speech feature (phoneme entropy)"
   }
-  
+
   # ----------------------------------------------------------------------
-  # Draw inferences and create nice LaTeX tables
-  
+  # Draw inferences and create data frame for table
+
   p_values <- summary(final_model)$coefficients[, "Pr(>|t|)"]
   conf_intervals <- confint(
     final_model,
@@ -170,13 +160,13 @@ for (current_model in models) {
     nsim = 5000,
     seed = 2025
   )
-  
+
   ci_tab <- as.data.frame(cbind(
     estimate = fixef(final_model),
     conf_intervals,
     p_values
   ))
-  
+
   if (current_model != "segmentation word" && current_model != "segmentation phone") {
     new_coeff_names <- c(
       "Intercept",
@@ -198,7 +188,7 @@ for (current_model in models) {
     )
   }
   rownames(ci_tab) <- new_coeff_names
-  
+
   # Add significance stars
   ci_tab$significance <- ifelse(
     ci_tab$p_values < 0.001, "***",
@@ -210,20 +200,58 @@ for (current_model in models) {
       )
     )
   )
-  
+
   # Apply formatting
   ci_tab$estimate <- sapply(ci_tab$estimate, format_and_wrap)
   ci_tab$`2.5 %` <- sapply(ci_tab$`2.5 %`, format_and_wrap)
   ci_tab$`97.5 %` <- sapply(ci_tab$`97.5 %`, format_and_wrap)
   ci_tab$p_values <- sapply(ci_tab$p_values, format_and_wrap)
   ci_tab <- rownames_to_column(ci_tab, var = "Coefficient")
-  
+
   # Rename columns for confidence intervals
   colnames(ci_tab) <- c("Coefficient", "Estimate", "$LL$", "$UL$", "$p$", "")
-  
+
   ci_tabs <- c(ci_tabs, ci_tab)
-  
-  print(ci_tab)
 }
 
-ci_tabs
+# ----------------------------------------------------------------------
+# Create nice LaTeX table
+
+# Combined data frame
+model_names <- c(
+  "Acoustic",
+  "Segmentation \\\\ word-level",
+  "Segmentation \\\\ phoneme-level",
+  "Linguistic \\\\ word-level",
+  "Linguistic \\\\ phoneme-level"
+)
+
+combined_df <- combine_tables(ci_tabs, model_names)
+combined_df <- combined_df[, c("Model", setdiff(names(combined_df), "Model"))]
+
+colnames(combined_df) <- c(
+  "Model",
+  "Coefficient",
+  "Estimate",
+  "$LL$",
+  "$UL$",
+  "$p$",
+  ""
+)
+
+# Create xtable object
+xtable_cis <- xtable(combined_df, caption = "Caption")
+align(xtable_cis) <- c("l", "l", "r", "r", "r", "r", "r", "r")
+
+writeLines(
+  print(
+    xtable_cis,
+    add.to.row = list(p
+    os = list(-1),
+    command = c("\\hline & & & \\multicolumn{2}{c}{95\\% CI} & \\\\ \\cmidrule(r){4-5}\n")),
+    include.rownames = FALSE,
+    hline.after = c(0, nrow(combined_df)),  # Add hline after the header row and at the end
+    sanitize.text.function = sanitize
+  ),
+  file.path(tables_dir, rms_table_file)
+)
