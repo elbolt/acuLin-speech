@@ -284,8 +284,14 @@ cython_debug/
 # Mac
 .DS_Store
 .ipynb
-.RData
+
+# History files
 .Rhistory
+.Rapp.history
+
+# Session Data files
+.RData
+.RDataTmp
 
 # My scripts to ignore
 preprocessing/speech/representations/aligner

@@ -93,9 +93,7 @@ def create_RMS_data(
         relevant_kernel_data, _ = get_relevant_data(kernel_data, time_vector, tmin, tmax, channel_indices)
         RMS_data = np.sqrt(np.mean(relevant_kernel_data ** 2, axis=2))
 
-        # REINTRODUCE THE CHANNELS
-
-        subject_df = pd.DataFrame(RMS_data, index=list(responses_dict.keys()), columns=channel_indices)
+        subject_df = pd.DataFrame(RMS_data, index=list(responses_dict.keys()), columns=relevant_channels)
         subject_df = subject_df.reset_index().melt(id_vars='index', var_name='electrode_id', value_name='RMS')
         subject_df.rename(columns={'index': 'response'}, inplace=True)
         subject_df['subject_id'] = subject_id
@@ -177,12 +175,20 @@ def create_peak_data(
     df = pd.DataFrame({
         'subject_id': all_subjects,
         'response': all_responses,
-        'channel': all_channels,
+        'electrode_id': all_channels,
         'latency_ms': all_latencies,
         'amplitude': all_amplitudes
     })
 
     return df
+
+
+def map_electrode_to_cluster(electrode_id):
+    return electrode_to_cluster.get(electrode_id)
+
+
+def map_response_to_model(response):
+    return response_to_model.get(response)
 
 
 if __name__ == "__main__":
@@ -203,6 +209,8 @@ if __name__ == "__main__":
     time_vector = np.load(config['time_vector'])
     tmin, tmax = config['tmin'], config['tmax']
     peak_prominence = config['peak_prominence']
+    channel_cluster_dict = config['channel_cluster_dict']
+    model_response_dict = config['model_response_dict']
 
     # Get the relevant channels and their indices
     relevant_channels = config['relevant_channels']
@@ -245,6 +253,16 @@ if __name__ == "__main__":
     scores_df_combined = pd.merge(scores_df, subject_df, on='subject_id')
     RMS_df_combined = pd.merge(RMS_df, subject_df, on='subject_id')
     peak_df_combined = pd.merge(peak_df, subject_df, on='subject_id')
+
+    # Reverse the dictionary for easier lookup
+    electrode_to_cluster = {e: cluster for cluster, electrodes in channel_cluster_dict.items() for e in electrodes}
+
+    peak_df_combined['cluster'] = peak_df_combined['electrode_id'].apply(map_electrode_to_cluster)
+    RMS_df_combined['cluster'] = RMS_df_combined['electrode_id'].apply(map_electrode_to_cluster)
+
+    # In RMS_df_combined, for each response, add a new column with the model.
+    response_to_model = {response: model for model, responses in model_response_dict.items() for response in responses}
+    RMS_df_combined['model'] = RMS_df_combined['response'].apply(map_response_to_model)
 
     scores_df_combined.to_csv(dataframes_dir / scores_filename, index=False)
     RMS_df_combined.to_csv(dataframes_dir / rms_filename, index=False)

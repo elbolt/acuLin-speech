@@ -8,7 +8,7 @@
     "scores_filename": "scores_data.csv",
     "rms_filename": "rms_data.csv",
     "peak_filename": "peak_data.csv",
-    "peak_window_filename": "peak__data_window.csv",
+    "peak_window_filename": "peak_data_window.csv",
     "scores_table_file": "scores_table_file.tex",
     "rms_table_file": "rms_table_file.tex",
     "time_vector": "/Volumes/NeuroSSD/neutralin-speech/boosting/time_vector.npy",
@@ -33,14 +33,16 @@
         "phoneme surprisal": 6,
         "phoneme entropy": 7
     },
+    "model_response_dict": {
+        "acoustic": ["envelope", "envelope onsets"],
+        "segmentation word": ["word onset"],
+        "segmentation phone": ["phoneme onset"],
+        "linguistic word": ["word surprisal", "word frequency"],
+        "linguistic phone": ["phoneme surprisal", "phoneme entropy"]
+    },
     "channel_cluster_dict": {
         "F": ["F3", "Fz", "F4"],
         "C": ["C3", "Cz", "C4"],
         "P": ["P3", "Pz", "P4"]
-    },
-    "channel_cluster_dummy_dict": {
-        "F": [3, 30, 26],
-        "C": [7, 31, 22],
-        "P": [11, 12, 18]
     }
 }

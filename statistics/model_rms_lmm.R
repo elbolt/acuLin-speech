@@ -23,20 +23,12 @@ dataframes_dir <- config$dataframes_dir
 tables_dir <- config$tables_dir
 rms_filename <- paste(dataframes_dir, config$rms_filename, sep = "/")
 rms_table_file <- config$rms_table_file
-channel_cluster_dummy_dict <- config$channel_cluster_dummy_dict
 
 data <- read.csv(rms_filename)
 models <- unique(data$model)
 
 # ----------------------------------------------------------------------
 # Data subset and preparation
-
-# Preparation 1: Add cluster information to data
-data$cluster <- sapply(
-  data$electrode_id,
-  find_cluster,
-  cluster_dict = channel_cluster_dummy_dict
-)
 
 # Initialize list to store final models
 final_models <- list()
@@ -246,9 +238,9 @@ align(xtable_cis) <- c("l", "l", "r", "r", "r", "r", "r", "r")
 writeLines(
   print(
     xtable_cis,
-    add.to.row = list(p
-    os = list(-1),
-    command = c("\\hline & & & \\multicolumn{2}{c}{95\\% CI} & \\\\ \\cmidrule(r){4-5}\n")),
+    add.to.row = list(
+      pos = list(-1),
+      command = c("\\hline & & & \\multicolumn{2}{c}{95\\% CI} & \\\\ \\cmidrule(r){4-5}\n")),
     include.rownames = FALSE,
     hline.after = c(0, nrow(combined_df)),  # Add hline after the header row and at the end
     sanitize.text.function = sanitize
