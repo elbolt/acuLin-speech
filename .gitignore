@@ -301,5 +301,7 @@ preprocessing/speech/representations/word
 preprocessing/speech/features/features
 figures/
 statistics/dataframes/
+statistics/tables/
 statistics/figures/
 statistics/test.ipynb
+statistics/create_peak_supptable.py

@@ -112,9 +112,10 @@ def create_peak_data(
         tmax: float,
         peak_prominence: float,
         relevant_channels: list[str],
-        channel_indices: list[int]
+        channel_indices: list[int],
+        channels_cluster_dict: dict
 ) -> pd.DataFrame:
-    """ Create a DataFrame with peak data from the kernel files.
+    """ Create DataFrame with peak data from the kernel files. The electrodes are grouped into clusters.
 
     Parameters
     ----------
@@ -134,6 +135,8 @@ def create_peak_data(
         List of relevant channels.
     channel_indices : list[int]
         List of channel indices.
+    channels_cluster_dict : dict
+        Dictionary with the clusters and their corresponding channels.
 
 
     Returns
@@ -157,11 +160,21 @@ def create_peak_data(
             channel_indices
         )
 
-        n_responses, n_channels = relevant_kernel_data.shape[:2]
+        cluster_names = list(channels_cluster_dict.keys())
+        channel_to_index = {channel: idx for idx, channel in enumerate(relevant_channels)}
+        cluster_average_kernel = np.zeros((
+            relevant_kernel_data.shape[0],
+            len(cluster_names),
+            relevant_kernel_data.shape[2]
+        ))
+        for cluster_idx, (_, channels) in enumerate(channels_cluster_dict.items()):
+            indices = [channel_to_index[channel] for channel in channels]
+            cluster_average_kernel[:, cluster_idx, :] = np.mean(relevant_kernel_data[:, indices, :], axis=1)
+        n_responses, n_cluster = cluster_average_kernel.shape[:2]
 
         for resp in range(n_responses):
-            for ch in range(n_channels):
-                response = relevant_kernel_data[resp, ch, ...]
+            for ch in range(n_cluster):
+                response = cluster_average_kernel[resp, ch, ...]
                 response_id = list(responses_dict.keys())[list(responses_dict.values()).index(resp)]
 
                 latencies, amplitudes = get_largest_peaks(response, relevant_time_lags, prominence=peak_prominence)
@@ -169,7 +182,7 @@ def create_peak_data(
                 all_responses.extend([response_id] * len(latencies))
                 all_subjects.extend([subject_id] * len(latencies))
                 all_latencies.extend(latencies * 1e3)  # from seconds to milliseconds
-                all_channels.extend([relevant_channels[ch]] * len(latencies))
+                all_channels.extend([cluster_names[ch]] * len(latencies))
                 all_amplitudes.extend(amplitudes)
 
     df = pd.DataFrame({
@@ -207,6 +220,7 @@ if __name__ == "__main__":
     models_dict = config['models_dict']
     responses_dict = config['responses_dict']
     time_vector = np.load(config['time_vector'])
+    peak_tmin = config['peak_tmin']
     tmin, tmax = config['tmin'], config['tmax']
     peak_prominence = config['peak_prominence']
     channel_cluster_dict = config['channel_cluster_dict']
@@ -243,11 +257,12 @@ if __name__ == "__main__":
         kernel_files,
         responses_dict,
         time_vector,
-        tmin,
+        peak_tmin,
         tmax,
         peak_prominence,
         relevant_channels,
-        channel_indices
+        channel_indices,
+        channel_cluster_dict
     )
 
     scores_df_combined = pd.merge(scores_df, subject_df, on='subject_id')

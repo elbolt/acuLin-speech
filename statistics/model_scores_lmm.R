@@ -18,10 +18,14 @@ config <- fromJSON("config.json")
 source("helpers.R")
 dataframes_dir <- config$dataframes_dir
 tables_dir <- config$tables_dir
+if (!dir.exists(tables_dir)) {
+  dir.create(tables_dir)
+}
 scores_filename <- paste(dataframes_dir, config$scores_filename, sep = "/")
-scores_table_file <- config$scores_table_file
+scores_table_file <- config$t1_lmm_scores_filename
 
 data <- read.csv(scores_filename)
+
 
 # ----------------------------------------------------------------------
 # Data preparation
@@ -52,6 +56,7 @@ data$subject_id
 
 # Check z-scored continuous variables
 data$PTA_z
+
 
 # ----------------------------------------------------------------------
 # Define fixed effects structure
@@ -140,7 +145,10 @@ ggplot(emm_data, aes(x = model, y = emmean, color = as.factor(PTA_z))) +
 # ----------------------------------------------------------------------
 # Draw inferences and create nice LaTeX tables
 
+t_values <- summary(final_model)$coefficients[, "t value"]
+df_values <- summary(final_model)$coefficients[, "df"]
 p_values <- summary(final_model)$coefficients[, "Pr(>|t|)"]
+
 conf_intervals <- confint(
   final_model,
   parm = "beta_",
@@ -152,8 +160,11 @@ conf_intervals <- confint(
 ci_tab <- as.data.frame(cbind(
   estimate = fixef(final_model),
   conf_intervals,
+  df_values,
+  t_values,
   p_values
 ))
+
 
 new_coeff_names <- c(
   "Intercept",
@@ -195,22 +206,28 @@ ci_tab$significance <- ifelse(
 ci_tab$estimate <- sapply(ci_tab$estimate, format_and_wrap)
 ci_tab$`2.5 %` <- sapply(ci_tab$`2.5 %`, format_and_wrap)
 ci_tab$`97.5 %` <- sapply(ci_tab$`97.5 %`, format_and_wrap)
-ci_tab$p_values <- sapply(ci_tab$p_values, format_and_wrap)
+ci_tab$df_values <- sapply(ci_tab$df_values, function(x) format_and_wrap(x, digits = 0))
+ci_tab$t_values <- sapply(ci_tab$t_values, function(x) format_and_wrap(x, digits = 1))
+ci_tab$p_values <- sapply(ci_tab$p_values, function(x) format_and_wrap(x, digits = 3, is_p_value = TRUE))
 ci_tab <- rownames_to_column(ci_tab, var = "Coefficient")
 
-colnames(ci_tab) <- c("Coefficient", "Estimate", "$LL$", "$UL$", "$p$", "")
+colnames(ci_tab) <- c("Coefficient", "Estimate", "$LL$", "$UL$", "$df$", "$t$", "$p$", "")
 
-# Create xtable object
-xtable_ci <- xtable(ci_tab, caption = "Caption")
-align(xtable_ci) <- c("l", "l", "r", "r", "r", "r", "l")
+# Save csv
+write.csv(ci_tab, paste(tables_dir, scores_table_file, sep = "/"), row.names = FALSE)
 
-writeLines(
-  print(
-    xtable_ci,
-    add.to.row = list(pos = list(-1),
-    command = c("\\hline & & \\multicolumn{2}{c}{95\\% CI} & & \\\\ \\cmidrule(r){3-4}\n")),
-    include.rownames = FALSE,
-    hline.after = c(0, nrow(ci_tab)),
-    sanitize.text.function = sanitize,
-  ), paste(tables_dir, scores_table_file, sep = "/")
-)
+
+# # Create xtable object
+# xtable_ci <- xtable(ci_tab, caption = "Caption")
+# align(xtable_ci) <- c("l", "l", "r", "r", "r", "r", "r", "r", "l")
+# 
+# writeLines(
+#   print(
+#     xtable_ci,
+#     add.to.row = list(pos = list(-1),
+#     command = c("\\hline & & \\multicolumn{2}{c}{95\\% CI} & & \\\\ \\cmidrule(r){3-4}\n")),
+#     include.rownames = FALSE,
+#     hline.after = c(0, nrow(ci_tab)),
+#     sanitize.text.function = sanitize,
+#   ), paste(tables_dir, scores_table_file, sep = "/")
+# )
