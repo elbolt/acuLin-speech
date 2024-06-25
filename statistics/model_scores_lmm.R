@@ -16,15 +16,16 @@ library(ggplot2)
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 config <- fromJSON("config.json")
 source("helpers.R")
+
 dataframes_dir <- config$dataframes_dir
 tables_dir <- config$tables_dir
 if (!dir.exists(tables_dir)) {
-  dir.create(tables_dir)
+  dir.create(tables_dir, recursive = TRUE)
 }
-scores_filename <- paste(dataframes_dir, config$scores_filename, sep = "/")
-scores_table_file <- config$t1_lmm_scores_filename
+scores_filepath <- file.path(dataframes_dir, config$scores_filename)
+table_outpath <- file.path(tables_dir, config$T1_lmm_scores_filename)
 
-data <- read.csv(scores_filename)
+data <- read.csv(scores_filepath)
 
 
 # ----------------------------------------------------------------------
@@ -213,21 +214,4 @@ ci_tab <- rownames_to_column(ci_tab, var = "Coefficient")
 
 colnames(ci_tab) <- c("Coefficient", "Estimate", "$LL$", "$UL$", "$df$", "$t$", "$p$", "")
 
-# Save csv
-write.csv(ci_tab, paste(tables_dir, scores_table_file, sep = "/"), row.names = FALSE)
-
-
-# # Create xtable object
-# xtable_ci <- xtable(ci_tab, caption = "Caption")
-# align(xtable_ci) <- c("l", "l", "r", "r", "r", "r", "r", "r", "l")
-# 
-# writeLines(
-#   print(
-#     xtable_ci,
-#     add.to.row = list(pos = list(-1),
-#     command = c("\\hline & & \\multicolumn{2}{c}{95\\% CI} & & \\\\ \\cmidrule(r){3-4}\n")),
-#     include.rownames = FALSE,
-#     hline.after = c(0, nrow(ci_tab)),
-#     sanitize.text.function = sanitize,
-#   ), paste(tables_dir, scores_table_file, sep = "/")
-# )
+write.csv(ci_tab, table_outpath, row.names = FALSE)

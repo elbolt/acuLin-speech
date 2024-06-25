@@ -269,11 +269,12 @@ if __name__ == "__main__":
     RMS_df_combined = pd.merge(RMS_df, subject_df, on='subject_id')
     peak_df_combined = pd.merge(peak_df, subject_df, on='subject_id')
 
-    # Reverse the dictionary for easier lookup
+    # Cluster column in RMS_df_combined
     electrode_to_cluster = {e: cluster for cluster, electrodes in channel_cluster_dict.items() for e in electrodes}
-
-    peak_df_combined['cluster'] = peak_df_combined['electrode_id'].apply(map_electrode_to_cluster)
     RMS_df_combined['cluster'] = RMS_df_combined['electrode_id'].apply(map_electrode_to_cluster)
+
+    # Rename the column 'electrode_id' to 'cluster' in peak_df_combined (it is already averaged by cluster)
+    peak_df_combined.rename(columns={'electrode_id': 'cluster'}, inplace=True)
 
     # In RMS_df_combined, for each response, add a new column with the model.
     response_to_model = {response: model for model, responses in model_response_dict.items() for response in responses}

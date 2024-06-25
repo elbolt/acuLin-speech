@@ -24,17 +24,18 @@ tables_dir <- config$tables_dir
 if (!dir.exists(tables_dir)) {
   dir.create(tables_dir)
 }
-rms_filename <- paste(dataframes_dir, config$rms_filename, sep = "/")
-rms_table_file <- config$t2_lmm_rms_filename
 
-data <- read.csv(rms_filename)
-models <- unique(data$model)
+rms_filepath <- file.path(dataframes_dir, config$rms_filename)
+table_outpath <- file.path(tables_dir, config$T2_lmm_rms)
+
+data <- read.csv(rms_filepath)
 
 
 # ----------------------------------------------------------------------
 # Data subset and preparation
 
 # Initialize list to store final models
+models <- unique(data$model)
 final_models <- list()
 ci_tabs <- list()
 
@@ -247,7 +248,7 @@ colnames(combined_df) <- c(
 )
 
 # Save as csv
-write.csv(combined_df, file.path(tables_dir, rms_table_file), row.names = FALSE)
+write.csv(combined_df, table_outpath, row.names = FALSE)
 
 # # Create xtable object
 # xtable_cis <- xtable(combined_df, caption = "Caption")
