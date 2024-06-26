@@ -91,3 +91,12 @@ holm_bonferroni <- function(pvals) {
   result[ordered_pvals$ix] <- adjusted_pvals
   return(result)
 }
+
+
+#' Function to capitalize the first letter of a string
+#' 
+#' @param x A character string to be capitalized.
+#' @return A character string with the first letter capitalized.
+capitalize_first <- function(x) {
+  paste0(toupper(substr(x, 1, 1)), tolower(substr(x, 2, nchar(x))))
+}

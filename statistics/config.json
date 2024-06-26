@@ -12,9 +12,8 @@
     "T1_lmm_scores_filename": "T1_lmm_scores.csv",
     "T2_lmm_rms_filename": "T2_lmm_rms.csv",
     "T3_peakstats_filename": "T3_peakstats.csv",
-    "TS1_lm_scores_filename": "TS1_lm_scores.csv",
-    "TS2_peak_desctats_filename": "TS2_peak_desctats.csv",
-    "TS3_peakpercent_filename": "TS3_peakpercent.csv",
+    "TS1_peak_desctats_filename": "TS1_peak_desctats.csv",
+    "TS2_peakpercent_filename": "TS2_peakpercent.csv",
     "peak_pecentages_filename": "peak_pecentages_raw.csv",
     "peakstats_review_filename": "peakstats_review.csv",
     "time_vector": "/Volumes/NeuroSSD/neutralin-speech/boosting/time_vector.npy",
@@ -51,5 +50,6 @@
         "F": ["F3", "Fz", "F4"],
         "C": ["C3", "Cz", "C4"],
         "P": ["P3", "Pz", "P4"]
-    }
+    },
+    "window_levels": ["early", "late"]
 }

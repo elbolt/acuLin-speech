@@ -12,7 +12,10 @@ library(tibble)
 library(dplyr)
 library(ggplot2)
 
-# Set working directory and load configurations
+
+# ----------------------------------------------------------------------
+# Configuration and data loading
+
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 config <- fromJSON("config.json")
 source("helpers.R")
@@ -87,8 +90,8 @@ red2_model <- lmer(
 anova(max_model, red1_model, red2_model)
 
 final_model <- max_model
-
 summary(final_model)
+
 
 # ----------------------------------------------------------------------
 # Model diagnostics
@@ -212,6 +215,6 @@ ci_tab$t_values <- sapply(ci_tab$t_values, function(x) format_and_wrap(x, digits
 ci_tab$p_values <- sapply(ci_tab$p_values, function(x) format_and_wrap(x, digits = 3, is_p_value = TRUE))
 ci_tab <- rownames_to_column(ci_tab, var = "Coefficient")
 
-colnames(ci_tab) <- c("Coefficient", "Estimate", "$LL$", "$UL$", "$df$", "$t$", "$p$", "")
+colnames(ci_tab) <- c("Coefficient", "Estimate", "LL", "UL", "df", "t", "p", "")
 
 write.csv(ci_tab, table_outpath, row.names = FALSE)

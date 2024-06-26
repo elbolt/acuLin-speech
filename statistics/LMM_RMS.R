@@ -12,7 +12,10 @@ library(tibble)
 library(dplyr)
 library(ggplot2)
 
-# Set working directory and load configurations
+
+# ----------------------------------------------------------------------
+# Configuration and data loading
+
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 config <- fromJSON("config.json")
 source("helpers.R")
@@ -32,7 +35,7 @@ data <- read.csv(peaks_filepath)
 data_percentages <- read.csv(peaks_stats_filepath)
 
 # + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + +
-is_review <- TRUE
+is_review <- FALSE
 # + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + + +
 
 
@@ -56,7 +59,7 @@ analyses <- c("amplitude", "latency")
 # Run multiple tests over all windows, responses and clusters
 
 for (current_analysis in analyses) {
-
+  
   results <- data.frame(
     window = character(),
     response = character(),
@@ -121,7 +124,7 @@ for (current_analysis in analyses) {
       }
     }
   }
-
+  
   results$sign <- ifelse(
     results$p < 0.001, "***",
     ifelse(
@@ -131,6 +134,7 @@ for (current_analysis in analyses) {
       )
     )
   )
+
 
   # ----------------------------------------------------------------------
   # Dataframe for review
@@ -166,9 +170,9 @@ for (current_analysis in analyses) {
   # Reorder column
   results_corr <- results_corr %>%
     select(window, response, cluster, U, p, sign, p_corr, sign_corr, r)
-
+  
   results_corr <- as.data.frame(results_corr)
-
+  
   if (current_analysis == "amplitude") {
     amplitude_results <- results_corr
     amplitude_subject_no <- participants_no
@@ -226,9 +230,29 @@ final_df <- final_df %>%
   rename("Speech feature" = response)
 final_df <- final_df %>%
   rename("Window" = window)
+final_df <- final_df %>%
+  rename("Cluster" = cluster)
 
 if (is_review) {
   write.csv(final_df, table_review_outpath, row.names = FALSE)
 } else {
+  relevant_cols <- c(
+    "Window",
+    "Speech feature",
+    "Cluster",
+    "U_amp",
+    "p_corr_amp",
+    "sign_corr_amp",
+    "r_amp",
+    "U_lat",
+    "p_lat",
+    "sign_corr_lat",
+    "r_lat",
+    "n_normal",
+    "n_low"
+  )
+  final_df <- final_df %>%
+    select(relevant_cols)
+  
   write.csv(final_df, table_outpath, row.names = FALSE)
 }
