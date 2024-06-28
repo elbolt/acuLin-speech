@@ -94,6 +94,8 @@ interaction_results <- emmeans(
   at = list(PTA_z = PTA_z_values)
 )
 
+interaction_pairwise <- pairs(interaction_results)
+
 # Plot interactions
 emmip(interaction_results, model ~ PTA_z, CIs = TRUE) +
   labs(title = "Interaction between PTA_z and Model on Score",
@@ -101,4 +103,12 @@ emmip(interaction_results, model ~ PTA_z, CIs = TRUE) +
        y = "Estimated Marginal Means (Score)",
        color = "Model") +
   theme_minimal()
+summary(interaction_pairwise)
 
+
+# ----------------------------------------------------------------------
+# Post-hoc (review) on MoCA_group and PTA_z (no longer existent) interaction
+
+emm <- emmeans(final_model, ~ MoCA_group | PTA_z)
+simple_slopes <- emtrends(final_model, ~ MoCA_group, var = "PTA_z")
+test(simple_slopes)

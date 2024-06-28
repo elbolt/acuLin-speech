@@ -73,16 +73,16 @@ def get_window_boundary(df, make_plots: bool = False, figures_dir: Path = Path('
                 ax=axes[idx // 2, idx % 2],
                 color=color_palette[idx],
                 s=18,
-                # edgecolor='none'
+                edgecolor='#525252'
             )
 
             axes[idx // 2, idx % 2].axvline(boundary, color='black', linestyle='--')
             response_upper = response[0].upper() + response[1:]
             axes[idx // 2, idx % 2].set_title(f'{response_upper}, {boundary:.0f} ms', fontsize=10)
             axes[idx // 2, idx % 2].set_xlabel('Latency (ms)')
-            axes[idx // 2, idx % 2].set_ylabel('Amplitude ($z$)')
+            axes[idx // 2, idx % 2].set_ylabel('Amplitude (a.u.)')
 
-        fig.savefig(figures_dir / 'time_clusters.eps', format='eps', dpi=300)
+        fig.savefig(figures_dir / 'time_clusters.pdf', dpi=300)
 
     else:
         for idx, response in enumerate(response_name):

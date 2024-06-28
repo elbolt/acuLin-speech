@@ -26,7 +26,7 @@ if (!dir.exists(tables_dir)) {
   dir.create(tables_dir, recursive = TRUE)
 }
 scores_filepath <- file.path(dataframes_dir, config$scores_filename)
-table_outpath <- file.path(tables_dir, config$T1_lmm_scores_filename)
+table_outpath <- file.path(tables_dir, config$TS1_lmm_scores_continous_filename)
 
 data <- read.csv(scores_filepath)
 
@@ -40,15 +40,11 @@ model_order <- names(config$models_dict)
 data$model <- factor(data$model, levels = model_order)
 contrasts(data$model) <- contr.sum(n_models)
 
-# Preparation 2: MoCA_group
-n_groups <- length(unique(data$MoCA_group))
-data$MoCA_group <- factor(data$MoCA_group, levels = c("normal", "low"))
-contrasts(data$MoCA_group) <- contr.sum(n_groups)
-
 # Preparation 3: Subject ID
 data$subject_id <- factor(data$subject_id)
 
 # Preparation 4: z-score continuous variables
+data$MoCA_z <- scale(data$MoCA_score)
 data$PTA_z <- scale(data$PTA_dB)
 
 # Check what contrasts look like
@@ -59,69 +55,19 @@ data$MoCA_group
 data$subject_id
 
 # Check z-scored continuous variables
+data$MoCA_z
 data$PTA_z
 
 
 # ----------------------------------------------------------------------
-# Define fixed effects structure
-# (I only include random intercepts in random effects structure)
+# Fit same model as in binary MoCA analysis
 
-max_model <- lmer(
-  score_r ~ 1 + MoCA_group * PTA_z * mTRF model +
-    (1 | subject_id),
+final_model <- lmer(
+  score_r ~ MoCA_z * PTA_z * model + (1 | subject_id),
   data = data,
   control = lmerControl(optimizer = "bobyqa")
 )
-
-red1_model <- lmer(
-  score_r ~ 1 + MoCA_group * PTA_z + mTRF model +
-    (1 | subject_id),
-  data = data,
-  control = lmerControl(optimizer = "bobyqa")
-)
-
-red2_model <- lmer(
-  score_r ~ 1 + MoCA_group * mTRF model +
-    (1 | subject_id),
-  data = data,
-  control = lmerControl(optimizer = "bobyqa")
-)
-
-anova(max_model, red1_model, red2_model)
-
-final_model <- max_model
 summary(final_model)
-
-
-# ----------------------------------------------------------------------
-# mTRF model diagnostics
-
-# Residuals vs Fitted
-plot(fitted(final_model), residuals(final_model), main = "Residuals vs Fitted")
-abline(h = 0, col = "red")
-
-# QQ Plot of residuals
-qqnorm(residuals(final_model))
-qqline(residuals(final_model), col = "red")
-
-# Histogram of residuals
-hist(residuals(final_model), breaks = 30, main = "Histogram of Residuals")
-
-# Extract random effects
-ranef(final_model)
-
-# Cook's Distance
-cooksd <- cooks.distance(final_model)
-plot(cooksd, main = "Cook's Distance", type = "h")
-abline(h = 4 / (nrow(data) - length(fixef(final_model))), col = "red")
-
-# Goodness-of-Fit
-r.squaredGLMM(final_model)
-AIC(final_model)
-BIC(final_model)
-
-# Multicollinearity
-vif(lm(score_r ~ MoCA_group * PTA_z * model, data = data))
 
 
 # ----------------------------------------------------------------------
@@ -150,25 +96,25 @@ ci_tab <- as.data.frame(cbind(
 
 new_coeff_names <- c(
   "Intercept",
-  "MoCA group (low)",
+  "MoCA score ($z$)",
   "PTA ($z$)",
   "mTRF model (Seg. word-level)",
   "mTRF model (Seg. phoneme-level)",
   "mTRF model (Lin. word-level)",
   "mTRF model (Lin. phoneme-level)",
-  "MoCA group (low) * PTA ($z$)",
-  "MoCA group (low) * mTRF model (Seg. word-level)",
-  "MoCA group (low) * mTRF model (Seg. phoneme-level)",
-  "MoCA group (low) * mTRF model (Lin. word-level)",
-  "MoCA group (low) * mTRF model (Lin. phoneme-level)",
-  "PTA ($z$) * mTRF model (Seg. word-level)",
-  "PTA ($z$) * mTRF model (Seg. phoneme-level)",
-  "PTA ($z$) * mTRF model (Lin. word-level)",
-  "PTA ($z$) * mTRF model (Lin. phoneme-level)",
-  "MoCA group (low) * PTA ($z$) * mTRF model (Seg. word-level)",
-  "MoCA group (low) * PTA ($z$) * mTRF model (Seg. phoneme-level)",
-  "MoCA group (low) * PTA ($z$) * mTRF model (Lin. word-level)",
-  "MoCA group (low) * PTA ($z$) * mTRF model (Lin. phoneme-level)"
+  "MoCA score * PTA",
+  "MoCA score * mTRF model (Seg. word-level)",
+  "MoCA score * mTRF model (Seg. phoneme-level)",
+  "MoCA score * mTRF model (Lin. word-level)",
+  "MoCA score * mTRF model (Lin. phoneme-level)",
+  "PTA * mTRF model (Seg. word-level)",
+  "PTA * mTRF model (Seg. phoneme-level)",
+  "PTA * mTRF model (Lin. word-level)",
+  "PTA * mTRF model (Lin. phoneme-level)",
+  "MoCA score * PTA * mTRF model (Seg. word-level)",
+  "MoCA score * PTA * mTRF model (Seg. phoneme-level)",
+  "MoCA score * PTA * mTRF model (Lin. word-level)",
+  "MoCA score * PTA * mTRF model (Lin. phoneme-level)"
 )
 rownames(ci_tab) <- new_coeff_names
 
@@ -196,3 +142,51 @@ ci_tab <- rownames_to_column(ci_tab, var = "Coefficient")
 colnames(ci_tab) <- c("Coefficient", "Estimate", "LL", "UL", "df", "t", "p", "")
 
 write.csv(ci_tab, table_outpath, row.names = FALSE)
+
+
+# ----------------------------------------------------------------------
+# Post-hoc analysis on MoCA_z, PTA_z and model interaction
+
+mean_MoCA_z <- mean(data$MoCA_z)
+sd_MoCA_z <- sd(data$MoCA_z)
+MoCA_z_values <- c(mean_MoCA_z - sd_MoCA_z, mean_MoCA_z, mean_MoCA_z + sd_MoCA_z)
+
+mean_PTA_z <- mean(data$PTA_z)
+sd_PTA_z <- sd(data$PTA_z)
+PTA_z_values <- c(mean_PTA_z - sd_PTA_z, mean_PTA_z, mean_PTA_z + sd_PTA_z)
+
+emm <- emmeans(
+  final_model,
+  ~ MoCA_z * PTA_z | model,
+  at = list(MoCA_z = MoCA_z_values, PTA_z = PTA_z_values)
+)
+
+emm_df <- as.data.frame(emm)
+emm_model3 <- subset(emm_df, model == "linguistic word")
+
+# Conduct pairwise comparisons for model3
+pairwise_results <- pairs(
+  emmeans(
+    final_model, ~ MoCA_z * PTA_z | model,
+    at = list(MoCA_z = MoCA_z_values, PTA_z = PTA_z_values)
+  ), which = "model3"
+)
+
+# Plot the interaction
+ggplot(
+  emm_model3,
+  aes(
+    x = PTA_z, y = emmean, color = factor(MoCA_z), group = factor(MoCA_z)
+  )
+) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = lower.CL, ymax = upper.CL), width = 0.2) +
+  labs(title = "Three-Way Interaction between MoCA_z, PTA_z, and Model3",
+       x = "PTA_z",
+       y = "Estimated Marginal Means (Score)",
+       color = "MoCA_z") +
+  theme_minimal() +
+  theme(legend.position = "right")
+
+print(pairwise_results)

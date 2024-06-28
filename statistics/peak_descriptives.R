@@ -20,7 +20,7 @@ if (!dir.exists(tables_dir)) {
 
 peaks_filepath <- file.path(dataframes_dir, config$peak_window_filename)
 peaks_stats_filepath <- file.path(tables_dir, config$peak_pecentages_filename)
-table_outpath <- file.path(tables_dir, config$TS1_peak_desctats_filename)
+table_outpath <- file.path(tables_dir, config$TS4_peakpercent_filename)
 response_levels <- names(config$responses_dict)
 cluster_levels <- names(config$channel_cluster_dict)
 window_levels <- config$window_levels

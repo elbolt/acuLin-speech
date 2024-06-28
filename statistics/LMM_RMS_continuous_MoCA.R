@@ -14,7 +14,10 @@ library(tidyr)
 library(ggplot2)
 library(xtable)
 
-# Set working directory and load configurations
+
+# ----------------------------------------------------------------------
+# Configuration and data loading
+
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 config <- fromJSON("config.json")
 source("helpers.R")
@@ -25,7 +28,7 @@ if (!dir.exists(tables_dir)) {
   dir.create(tables_dir)
 }
 rms_filename <- paste(dataframes_dir, config$rms_filename, sep = "/")
-rms_table_file <- config$T2_lmm_rms_filename
+rms_table_file <- config$TS2_lmm_rms_continous_filename
 
 data <- read.csv(rms_filename)
 models <- unique(data$model)
@@ -40,10 +43,10 @@ ci_tabs <- list()
 
 for (current_model in models) {
 
-  # Preparation 2: Subset data
+  # Preparation 1: Subset data
   data_subset <- subset(data, model == current_model)
 
-  # Preparation 3: Set response order for each model
+  # Preparation 2: Set response order for each model
   if (current_model == "acoustic") {
     response_order <- c("envelope", "envelope onsets")
   } else if (current_model == "segmentation word") {
@@ -62,15 +65,11 @@ for (current_model in models) {
     contrasts(data_subset$response) <- contr.treatment(n_responses)
   }
 
-  # Preparation 4: MoCA_group
-  n_groups <- length(unique(data_subset$MoCA_group))
-  data_subset$MoCA_group <- factor(data_subset$MoCA_group, levels = c("normal", "low"))
-  contrasts(data_subset$MoCA_group) <- contr.treatment(n_groups)
-
-  # Preparation 5: Subject ID
+  # Preparation 3: Subject ID
   data_subset$subject_id <- factor(data_subset$subject_id)
 
-  # Preparation 5: z-score continuous variables
+  # Preparation 4: z-score continuous variables
+  data_subset$MoCA_z <- scale(data_subset$MoCA_score)
   data_subset$PTA_z <- scale(data_subset$PTA_dB)
 
   # Preparation 6: Cluster
@@ -79,62 +78,32 @@ for (current_model in models) {
 
   # Check what contrasts look like
   data_subset$response
-  data_subset$MoCA_group
 
   # Check factor variable
   data_subset$subject_id
 
   # Check z-scored continuous variables
+  data_subset$MoCA_z
   data_subset$PTA_z
 
 
   # ----------------------------------------------------------------------
-  # Define fixed effects structure
-  # (I only include random intercepts in random effects structure)
-
-  # Segmentation models have one response variable only.
+  # # Fit same model as in binary MoCA analysis
+  
   if (current_model != "segmentation word" && current_model != "segmentation phone") {
-    max_model <- lmer(
-      RMS ~ 1 + MoCA_group * PTA_z * response * cluster +
+    final_model <- lmer(
+      RMS ~ 1 + MoCA_z * PTA_z + response + cluster +
         (1 | subject_id),
       data = data_subset,
       control = lmerControl(optimizer = "bobyqa")
     )
-
-    red1_model <- lmer(
-      RMS ~ 1 + MoCA_group * PTA_z * response + cluster +
-        (1 | subject_id),
-      data = data_subset,
-      control = lmerControl(optimizer = "bobyqa")
-    )
-
-    red2_model <- lmer(
-      RMS ~ 1 + MoCA_group * PTA_z + response + cluster +
-        (1 | subject_id),
-      data = data_subset,
-      control = lmerControl(optimizer = "bobyqa")
-    )
-
-    final_model <- red2_model
-    final_models <- c(final_models, final_model)
-
   } else {
-    max_model <- lmer(
-      RMS ~ 1 + MoCA_group * PTA_z * cluster +
+    final_model <- lmer(
+      RMS ~ 1 + MoCA_z * PTA_z + cluster +
         (1 | subject_id),
       data = data_subset,
       control = lmerControl(optimizer = "bobyqa")
     )
-
-    red1_model <- lmer(
-      RMS ~ 1 + MoCA_group * PTA_z + cluster +
-        (1 | subject_id),
-      data = data_subset,
-      control = lmerControl(optimizer = "bobyqa")
-    )
-
-    final_model <- red1_model
-    final_models <- c(final_models, final_model)
   }
 
   if (current_model == "acoustic") {
@@ -160,7 +129,7 @@ for (current_model in models) {
     nsim = 5000,
     seed = 2025
   )
-
+  
   ci_tab <- as.data.frame(cbind(
     estimate = fixef(final_model),
     conf_intervals,
@@ -172,21 +141,21 @@ for (current_model in models) {
   if (current_model != "segmentation word" && current_model != "segmentation phone") {
     new_coeff_names <- c(
       "Intercept",
-      "MoCA group (low)",
+      "MoCA ($z$)",
       "PTA ($z$)",
       response_name,
       "Cluster (C)",
       "Cluster (P)",
-      "MoCA group (low) * PTA ($z$)"
+      "MoCA * PTA"
     )
   } else {
     new_coeff_names <- c(
       "Intercept",
-      "MoCA group (low)",
+      "MoCA ($z$)",
       "PTA ($z$)",
       "Cluster (C)",
       "Cluster (P)",
-      "MoCA group (low) * PTA ($z$)"
+      "MoCA * PTA"
     )
   }
   rownames(ci_tab) <- new_coeff_names
@@ -213,9 +182,10 @@ for (current_model in models) {
   ci_tab <- rownames_to_column(ci_tab, var = "Coefficient")
 
   # Rename columns for confidence intervals
-  colnames(ci_tab) <- c("Coefficient", "Estimate", "$LL$", "$UL$", "$df$", "$t$", "$p$", "")
+  colnames(ci_tab) <- c("Coefficient", "$\beta$", "LL", "UL", "df", "$t$", "$p$", "")
 
   ci_tabs <- c(ci_tabs, ci_tab)
+  print(summary(final_model))
 }
 
 
@@ -237,10 +207,10 @@ combined_df <- combined_df[, c("Model", setdiff(names(combined_df), "Model"))]
 colnames(combined_df) <- c(
   "Model",
   "Coefficient",
-  "Estimate",
-  "$LL$",
-  "$UL$",
-  "$df$",
+  "$\beta$",
+  "LL",
+  "UL",
+  "df",
   "$t$",
   "$p$",
   ""
