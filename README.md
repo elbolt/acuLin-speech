@@ -23,3 +23,6 @@ The EEG and speech preprocessing pipelines are located under `preprocessing`, wh
 
 The mTRF models were created using techniques from the Eelbrain Toolbox. For a detailed explanation and methodology, refer to [Brodbeck et al. (2023)](https://doi.org/10.7554/eLife.85012). The `boosting` directory holds all scripts used to set up the models as described in our paper.
 
+### Statistics
+
+This folder contains the R and Python scripts used to run the statistical models and perform the descriptive statistics reported in the main manuscript and supplementary material. These scripts ensure reproducibility and transparency of our data analysis processes.
