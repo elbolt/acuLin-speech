@@ -2,7 +2,7 @@
 
 ## Description
 
-This repository hosts the pipelines for preprocessing electroencephalography (EEG) and speech signal data, alongside the modeling procedure for the multivariate Temporal Response Function (mTRF) models. These models are detailed in our manuscript entitled "*Neural encoding of linguistic cues in natural speech is not affected by cognitive decline but decreases with increasing hearing impairment at word-level segmentation*", currently under revision.
+This repository hosts the pipelines for preprocessing electroencephalography (EEG) and speech signal data, alongside the modeling procedure for the multivariate Temporal Response Function (mTRF) models. These models are detailed in our manuscript entitled "*Neural encoding of linguistic speech cues is unaffected by cognitive decline, but decreases with increasing hearing impairment*", accepted in Scientific Reports.
 
 The code is shared for transparency purposes. The data—comprising EEG and audio files—cannot (yet) be shared. Note that the code is tailored to our specific environment and data infrastructure; it requires adjustments for use in different setups.
 
